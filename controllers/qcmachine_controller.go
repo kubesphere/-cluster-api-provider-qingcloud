@@ -277,10 +277,15 @@ func (r *QCMachineReconciler) reconcileDelete(ctx context.Context, machineScope 
 		r.Recorder.Eventf(qcMachine, corev1.EventTypeWarning, "NoInstanceFound", "Skip deleting")
 	}
 
-	r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
-	controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
-
-	return ctrl.Result{}, nil
+	// re-get instance and make sure it is deleted
+	instance, err = computesvc.GetInstance(machineScope.GetInstanceID())
+	if err != nil && qcerrors.IsNotFoundOrDeleted(err) {
+		r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
+		controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
+		return ctrl.Result{}, nil
+	} else {
+		return ctrl.Result{}, errors.Errorf("Got instance: %+v, error: %+v, this is not expected, finalizer of qcmachine not removed", instance, err)
+	}
 }
 
 func (r *QCMachineReconciler) reconcile(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (ctrl.Result, error) {
