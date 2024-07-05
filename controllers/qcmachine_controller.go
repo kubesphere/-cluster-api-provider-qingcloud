@@ -261,7 +261,7 @@ func (r *QCMachineReconciler) reconcileDelete(ctx context.Context, machineScope 
 
 	computesvc := compute.NewService(ctx, clusterScope)
 	instance, err := computesvc.GetInstance(machineScope.GetInstanceID())
-	if err == nil {
+	if err == nil || qcerrors.IsNotFoundOrDeleted(err) {
 		if instance == nil || *instance.Status == string(infrav1beta1.QCResourceStatusTerminated) || *instance.Status == string(infrav1beta1.QCResourceStatusCeased) {
 			r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
 			controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
