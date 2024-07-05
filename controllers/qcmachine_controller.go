@@ -261,31 +261,23 @@ func (r *QCMachineReconciler) reconcileDelete(ctx context.Context, machineScope 
 
 	computesvc := compute.NewService(ctx, clusterScope)
 	instance, err := computesvc.GetInstance(machineScope.GetInstanceID())
-	if err != nil && !qcerrors.IsNotFoundOrDeleted(err) {
-		machineScope.Error(err, "get instance failed")
-		return ctrl.Result{}, err
-	}
-
-	if instance != nil {
-		err = computesvc.DeleteInstance(machineScope.GetInstanceID())
-		if err != nil && !qcerrors.IsNotFoundOrDeleted(err) {
-			machineScope.Error(err, "delete instance failed")
-			return ctrl.Result{}, err
+	if err == nil {
+		if instance == nil || *instance.Status == string(infrav1beta1.QCResourceStatusTerminated) || *instance.Status == string(infrav1beta1.QCResourceStatusCeased) {
+			r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
+			controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
+			return ctrl.Result{}, nil
 		}
-	} else {
-		clusterScope.V(2).Info("Unable to locate instance")
-		r.Recorder.Eventf(qcMachine, corev1.EventTypeWarning, "NoInstanceFound", "Skip deleting (may have been deleted)")
+		if instance != nil {
+			err = computesvc.DeleteInstance(machineScope.GetInstanceID())
+			if err != nil && !qcerrors.IsNotFoundOrDeleted(err) {
+				machineScope.Error(err, "delete instance failed")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
 	}
 
-	// re-get instance and make sure it is deleted
-	instance, err = computesvc.GetInstance(machineScope.GetInstanceID())
-	if err == nil && instance == nil {
-		r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
-		controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
-		return ctrl.Result{}, nil
-	} else {
-		return ctrl.Result{}, errors.Errorf("Got instance: %+v, error: %+v, this is not expected, finalizer of qcmachine not removed", instance, err)
-	}
+	return ctrl.Result{}, errors.Errorf("Got instance: %+v, error: %+v, this is not expected, finalizer of qcmachine not removed", instance, err)
 }
 
 func (r *QCMachineReconciler) reconcile(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (ctrl.Result, error) {
