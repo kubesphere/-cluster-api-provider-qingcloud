@@ -274,12 +274,12 @@ func (r *QCMachineReconciler) reconcileDelete(ctx context.Context, machineScope 
 		}
 	} else {
 		clusterScope.V(2).Info("Unable to locate instance")
-		r.Recorder.Eventf(qcMachine, corev1.EventTypeWarning, "NoInstanceFound", "Skip deleting")
+		r.Recorder.Eventf(qcMachine, corev1.EventTypeWarning, "NoInstanceFound", "Skip deleting (may have been deleted)")
 	}
 
 	// re-get instance and make sure it is deleted
 	instance, err = computesvc.GetInstance(machineScope.GetInstanceID())
-	if err != nil && qcerrors.IsNotFoundOrDeleted(err) {
+	if err == nil && instance == nil {
 		r.Recorder.Eventf(qcMachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
 		controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
 		return ctrl.Result{}, nil
@@ -342,8 +342,11 @@ func (r *QCMachineReconciler) reconcile(ctx context.Context, machineScope *scope
 			machineScope.Error(err, "get instance failed")
 			return ctrl.Result{}, err
 		}
+		if instance == nil {
+			return ctrl.Result{}, errors.New("instance not found")
+		}
 	}
-	machineScope.SetInstanceStatus(infrav1beta1.QCResourceStatus(qcs.StringValue(instance.InstanceSet[0].Status)))
+	machineScope.SetInstanceStatus(infrav1beta1.QCResourceStatus(qcs.StringValue(instance.Status)))
 	instanceState := *machineScope.GetInstanceStatus()
 	switch instanceState {
 	case infrav1beta1.QCResourceStatusPending:

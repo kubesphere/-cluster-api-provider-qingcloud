@@ -56,13 +56,15 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (infrav1beta1.QCReso
 
 	if qcs.IntValue(o.RetCode) != 0 {
 		return nil, qcerrors.NewQingCloudError(o.RetCode, o.Message)
+	} else if len(o.Instances) == 0 {
+		return nil, errors.New("instance not created")
+	} else {
+		return o.Instances[0], nil
 	}
-
-	return o.Instances[0], nil
 }
 
 // GetInstance get a Instance by Instance ID.
-func (s *Service) GetInstance(instanceID infrav1beta1.QCResourceID) (*qcs.DescribeInstancesOutput, error) {
+func (s *Service) GetInstance(instanceID infrav1beta1.QCResourceID) (*qcs.Instance, error) {
 	if qcs.StringValue(instanceID) == "" {
 		return nil, nil
 	}
@@ -77,9 +79,11 @@ func (s *Service) GetInstance(instanceID infrav1beta1.QCResourceID) (*qcs.Descri
 	}
 	if qcs.IntValue(o.RetCode) != 0 {
 		return nil, qcerrors.NewQingCloudError(o.RetCode, o.Message)
+	} else if len(o.InstanceSet) == 0 {
+		return nil, nil
+	} else {
+		return o.InstanceSet[0], nil
 	}
-
-	return o, nil
 }
 
 // UploadUserData upload userdata for Instance.
