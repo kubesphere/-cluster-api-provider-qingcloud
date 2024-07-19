@@ -146,6 +146,9 @@ var (
 
 	// QCResourceStatusCeased is the string representing an QingCloud resource in a ceased state.
 	QCResourceStatusCeased = QCResourceStatus("ceased")
+
+	// QCResourceStatusTerminated is the string representing an QingCloud resource in a terminated state.
+	QCResourceStatusTerminated = QCResourceStatus("terminated")
 )
 
 type InstanceSize struct {
