@@ -267,13 +267,13 @@ func (r *QCMachineReconciler) reconcileDelete(ctx context.Context, machineScope 
 			controllerutil.RemoveFinalizer(qcMachine, infrav1beta1.MachineFinalizer)
 			return ctrl.Result{}, nil
 		}
-		if instance != nil {
+		if instance != nil && instance.TransitionStatus != nil && *instance.TransitionStatus != "stopping" && *instance.TransitionStatus != "terminating" {
 			err = computesvc.DeleteInstance(machineScope.GetInstanceID())
 			if err != nil && !qcerrors.IsNotFoundOrDeleted(err) {
 				machineScope.Error(err, "delete instance failed")
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
 	}
 
